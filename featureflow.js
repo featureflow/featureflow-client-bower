@@ -73,7 +73,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 4);
+/******/ 	return __webpack_require__(__webpack_require__.s = 3);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -81,193 +81,111 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-function EventEmitter() {
-    var eventEmitter = {};
-    var _listeners = {};
-
-    eventEmitter.initEventEmitter = function () {
-        this._listeners = {};
-    };
-
-    eventEmitter.initEventEmitterType = function (type) {
-        if (!type) {
-            return;
-        }
-        this._listeners[type] = [];
-    };
-
-    eventEmitter.hasEventListener = function (type) {
-        if (!this.listener) {
-            return false;
-        }
-
-        if (type && !this.listener[type]) {
-            return false;
-        }
-
-        return true;
-    };
-
-    eventEmitter.addListener = function (type, fn) {
-        if (!this._listeners) {
-            this.initEventEmitter();
-        }
-        if (!this._listeners[type]) {
-            this.initEventEmitterType(type);
-        }
-        this._listeners[type].push(fn);
-
-        this.emit('newListener', type, fn);
-    };
-
-    eventEmitter.on = eventEmitter.addListener;
-
-    eventEmitter.one = function (type, fn) {
-        fn._oneTimeListener = true;
-        this.addListener(type, fn);
-    };
-
-    eventEmitter.removeListener = function (type, fn) {
-        if (!this._listeners) {
-            return;
-        }
-        if (!this._listeners[type]) {
-            return;
-        }
-        if (isNaN(this._listeners[type].length)) {
-            return;
-        }
-
-        if (!type) {
-            this.initEventEmitter();
-            this.emit('removeListener', type, fn);
-            return;
-        }
-        if (!fn) {
-            this.initEventEmitterType(type);
-            this.emit('removeListener', type, fn);
-            return;
-        }
-
-        var self = this;
-        for (var i = 0; i < this._listeners[type].length; i++) {
-            (function (listener, index) {
-                if (listener === fn) {
-                    self._listeners[type].splice(index, 1);
-                }
-            })(this._listeners[type][i], i);
-        }
-        this.emit('removeListener', type, fn);
-    };
-
-    eventEmitter.emit = function (type) {
-        if (!this._listeners) {
-            return;
-        }
-        if (!this._listeners[type]) {
-            return;
-        }
-        if (isNaN(this._listeners[type].length)) {
-            return;
-        }
-
-        var self = this,
-            args = [].slice.call(arguments, 1);
-
-        for (var i = 0; i < this._listeners[type].length; i++) {
-            (function (listener) {
-                listener.apply(self, args);
-                if (listener._oneTimeListener) {
-                    self.removeListener(type, listener);
-                }
-            })(this._listeners[type][i]);
-        }
-    };
-
-    eventEmitter.listeners = function (type) {
-        if (!type) {
-            return undefined;
-        }
-        return this._listeners[type];
-    };
-
-    // jquery style alias
-    eventEmitter.trigger = eventEmitter.emit;
-    eventEmitter.off = eventEmitter.removeListener;
-
-    return eventEmitter;
+function getJSON(endpoint, callback) {
+  var request = new XMLHttpRequest();
+  request.addEventListener('load', function () {
+    if (request.status === 200 && request.getResponseHeader('Content-type') === "application/json;charset=UTF-8") {
+      callback(null, JSON.parse(request.responseText));
+    } else {
+      callback(request.statusText);
+    }
+  });
+  request.addEventListener('error', function () {
+    callback(request.statusText);
+  });
+  request.open('GET', endpoint);
+  request.send();
+  return request;
 }
 
-/* harmony default export */ __webpack_exports__["a"] = EventEmitter;
+function base64URLEncode(context) {
+  return btoa(JSON.stringify(context));
+}
+
+/* harmony default export */ __webpack_exports__["a"] = {
+  getFeatures: function getFeatures(baseUrl, apiKey, context) {
+    var keys = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : [];
+    var callback = arguments[4];
+
+    var query = keys.length > 0 ? '?keys=' + keys.join(',') : '';
+    getJSON(baseUrl + '/api/js/v1/evaluate/' + apiKey + '/context/' + encodeURI(base64URLEncode(context)) + query, callback);
+  }
+};
 
 /***/ }),
 /* 1 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
+/***/ (function(module, exports) {
 
-"use strict";
-/**
- * Created by oliver on 23/11/16.
- */
-function FeatureflowContext(context) {
-    var featureflowContext = context;
-
-    featureflowContext.update = function (context) {
-        context = clone(context);
-    };
-
-    featureflowContext.getContext = function () {
-        return clone(context);
-    };
-
-    function clone(obj) {
-        return JSON.parse(JSON.stringify(obj));
-    }
-
-    return featureflowContext;
+function E () {
+  // Keep this empty so it's easier to inherit from
+  // (via https://github.com/lipsmack from https://github.com/scottcorgan/tiny-emitter/issues/3)
 }
 
-/* harmony default export */ __webpack_exports__["a"] = FeatureflowContext;
+E.prototype = {
+  on: function (name, callback, ctx) {
+    var e = this.e || (this.e = {});
+
+    (e[name] || (e[name] = [])).push({
+      fn: callback,
+      ctx: ctx
+    });
+
+    return this;
+  },
+
+  once: function (name, callback, ctx) {
+    var self = this;
+    function listener () {
+      self.off(name, listener);
+      callback.apply(ctx, arguments);
+    };
+
+    listener._ = callback
+    return this.on(name, listener, ctx);
+  },
+
+  emit: function (name) {
+    var data = [].slice.call(arguments, 1);
+    var evtArr = ((this.e || (this.e = {}))[name] || []).slice();
+    var i = 0;
+    var len = evtArr.length;
+
+    for (i; i < len; i++) {
+      evtArr[i].fn.apply(evtArr[i].ctx, data);
+    }
+
+    return this;
+  },
+
+  off: function (name, callback) {
+    var e = this.e || (this.e = {});
+    var evts = e[name];
+    var liveEvents = [];
+
+    if (evts && callback) {
+      for (var i = 0, len = evts.length; i < len; i++) {
+        if (evts[i].fn !== callback && evts[i].fn._ !== callback)
+          liveEvents.push(evts[i]);
+      }
+    }
+
+    // Remove event from queue to prevent memory leak
+    // Suggested by https://github.com/lazd
+    // Ref: https://github.com/scottcorgan/tiny-emitter/commit/c6ebfaa9bc973b33d110a84a307742b7cf94c953#commitcomment-5024910
+
+    (liveEvents.length)
+      ? e[name] = liveEvents
+      : delete e[name];
+
+    return this;
+  }
+};
+
+module.exports = E;
+
 
 /***/ }),
 /* 2 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-function getJSON(endpoint, callback) {
-    var request = new XMLHttpRequest();
-    request.addEventListener('load', function () {
-        if (request.status === 200 && request.getResponseHeader('Content-type') === "application/json;charset=UTF-8") {
-            callback(JSON.parse(request.responseText));
-        } else {
-            callback(request.statusText);
-        }
-    });
-    request.addEventListener('error', function () {
-        callback(request.statusText);
-    });
-    request.open('GET', endpoint);
-    request.send();
-    return request;
-}
-
-function RestClient(baseUrl, apiKey) {
-    function base64URLEncode(context) {
-        return btoa(JSON.stringify(context)); //.replace(/\+/g, '-').replace(/\//g, '_').replace(/\=+$/, '');
-    }
-
-    return {
-        getControls: function getControls(context, callback) {
-            var contextData = encodeURI(base64URLEncode(context));
-            var url = baseUrl + '/api/js/v1/evaluate/' + apiKey + "/context/" + contextData;
-            getJSON(url, callback);
-        }
-    };
-}
-
-/* harmony default export */ __webpack_exports__["a"] = RestClient;
-
-/***/ }),
-/* 3 */
 /***/ (function(module, exports) {
 
 module.exports = function(originalModule) {
@@ -297,110 +215,168 @@ module.exports = function(originalModule) {
 
 
 /***/ }),
-/* 4 */
+/* 3 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 /* WEBPACK VAR INJECTION */(function(module) {Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__RestClient__ = __webpack_require__(2);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__EventEmitter__ = __webpack_require__(0);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__FeatureflowContext__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__RestClient__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_tiny_emitter__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_tiny_emitter___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_tiny_emitter__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "events", function() { return events; });
 /* harmony export (immutable) */ __webpack_exports__["init"] = init;
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 
 
-
-var context = void 0;
-var restClient = void 0;
-var eventEmitter = void 0;
-var environment = void 0;
-var controlsUrl = void 0;
-var baseUrl = void 0;
-var EVENT_READY = 'ready';
-var EVENT_UPDATED_CONTEXT = 'update:context';
-var EVENT_UPDATED_CONTROLS = 'update:controls';
 
 var DEFAULT_CONTEXT_VALUES = {
   key: 'anonymous'
 };
 
-var featureflow = {
-  controls: {},
-  env: {},
-  context: {},
-  on: on,
-  removeListener: removeListener,
-  updateContext: updateContext,
-  evaluate: evaluate
+var DEFAULT_BASE_URL = 'https://app.featureflow.io';
+var DEFAULT_RTM_URL = 'https://rtm.featureflow.io';
+
+var DEFAULT_CONFIG = {
+  baseUrl: DEFAULT_BASE_URL,
+  rtmUrl: DEFAULT_RTM_URL,
+  streaming: true,
+  defaultFeatures: {}
 };
 
-function evaluate(key, failoverValue) {
-  return featureflow.controls && featureflow.controls.hasOwnProperty(key) && featureflow.controls[key] !== null ? featureflow.controls[key] : failoverValue;
+var INIT_MODULE_ERROR = new Error('init() has not been called with a valid apiKey');
+
+var events = {
+  LOADED: 'LOADED',
+  ERROR: 'ERROR',
+  UPDATED_FEATURE: 'UPDATED_FEATURE'
 };
-
-function on(event, handler) {
-  eventEmitter.on(event, handler);
-}
-function removeListener(eventName, listener) {
-  eventEmitter.removeListener(eventName, listener);
-}
-
-function updateContext(contextVals) {
-  context = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_2__FeatureflowContext__["a" /* default */])(contextVals);
-  restClient.getControls(context.getContext(), function (response) {
-    localStorage.setItem(environment + ":" + context.getContext().key, JSON.stringify(response));
-    featureflow.controls = response;
-    featureflow.context = context.getContext();
-    eventEmitter.emit(EVENT_UPDATED_CONTEXT, context.getContext());
-    eventEmitter.emit(EVENT_UPDATED_CONTROLS, response);
-  });
-}
 
 function init(apiKey) {
-  var contextVals = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : _extends({}, DEFAULT_CONTEXT_VALUES);
-  var config = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+  var _context = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 
-  featureflow.controls = {};
-  eventEmitter = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__EventEmitter__["a" /* default */])();
-  controlsUrl = config.controlsUrl || 'https://controls.featureflow.io';
-  baseUrl = config.baseUrl || 'https://app.featureflow.io';
-  restClient = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */])(baseUrl, apiKey);
+  var _config = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
 
-  //1. Set the context
-  context = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_2__FeatureflowContext__["a" /* default */])(contextVals);
+  var features = {};
+  var config = void 0;
+  var context = void 0;
+  var emitter = new __WEBPACK_IMPORTED_MODULE_1_tiny_emitter___default.a();
 
-  //2. Load evaluated controls from featureflow
-  restClient.getControls(context.getContext(), function (response) {
-    localStorage.setItem(environment + ":" + context.getContext().key, JSON.stringify(response));
-    featureflow.controls = response;
-    featureflow.context = context.getContext();
-    eventEmitter.emit(EVENT_READY);
-  });
+  //1. They must have an api key
+  if (!apiKey) {
+    throw INIT_MODULE_ERROR;
+  }
 
-  // //3. Set up SSE if required
-  // let es = new window.EventSource(baseUrl + '/api/js/v1/stream/' + apiKey);
-  // //.add("Accept", "text/event-stream")
-  // es.addEventListener('message', function (e) {
-  //   console.log(e.data);
-  //   //alert('got event: ' + e);
-  //   //reevaluate control
-  //   eventEmitter.emit(EVENT_UPDATED_CONTEXT);
-  // }, false);
-  //4. Send an event
+  //2. Extend the default configuration
+  config = _extends({}, DEFAULT_CONFIG, _config);
 
-  return featureflow;
+  //3. Load initial data
+  updateContext(_context);
+
+  //4. Set up realtime streaming
+  if (config.streaming) {
+    var es = new window.EventSource(config.rtmUrl + '/api/js/v1/stream/' + apiKey);
+    es.onmessage = function (e) {
+      var keys = [];
+      try {
+        keys = JSON.parse(e.data);
+      } catch (err) {
+        //Ah well, we tried...
+      }
+
+      __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].getFeatures(config.baseUrl, apiKey, context, keys, function (error, _features) {
+        features = _extends({}, features, _features);
+        emitter.emit(events.UPDATED_FEATURE, _features);
+      });
+    };
+  }
+
+  function updateContext(_context) {
+    context = _extends({}, DEFAULT_CONTEXT_VALUES, _context);
+
+    try {
+      features = JSON.parse(localStorage.getItem('ff:' + context.key + ':' + apiKey) || '{}');
+    } catch (err) {
+      features = {};
+    }
+
+    __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].getFeatures(config.baseUrl, apiKey, context, [], function (error, _features) {
+      if (!error) {
+        features = _features || {};
+        localStorage.setItem('ff:' + context.key + ':' + apiKey, JSON.stringify(features));
+        emitter.emit(events.LOADED, _features);
+      } else {
+        emitter.emit(events.ERROR, error);
+      }
+    });
+    return context;
+  }
+
+  var Evaluate = function () {
+    function Evaluate(key) {
+      _classCallCheck(this, Evaluate);
+
+      this.key = key;
+    }
+
+    _createClass(Evaluate, [{
+      key: 'value',
+      value: function value() {
+        return features[this.key] || config.defaultFeatures[this.key] || 'off';
+      }
+    }, {
+      key: 'is',
+      value: function is(value) {
+        return value.toLowerCase() === this.value().toLowerCase();
+      }
+    }, {
+      key: 'isOn',
+      value: function isOn() {
+        return this.is('on');
+      }
+    }, {
+      key: 'isOff',
+      value: function isOff() {
+        return this.is('off');
+      }
+    }]);
+
+    return Evaluate;
+  }();
+
+  function getFeatures() {
+    return features;
+  }
+
+  function getContext() {
+    return context;
+  }
+
+  return {
+    updateContext: updateContext,
+    getFeatures: getFeatures,
+    getContext: getContext,
+    evaluate: function evaluate(value) {
+      return new Evaluate(value);
+    },
+    on: emitter.on.bind(emitter),
+    off: emitter.off.bind(emitter)
+  };
 }
 
 /* harmony default export */ __webpack_exports__["default"] = {
-  init: init
+  init: init,
+  events: events
 };
 
 if (window.VERSION !== undefined) {
   module.exports.version = window.VERSION;
 }
-/* WEBPACK VAR INJECTION */}.call(__webpack_exports__, __webpack_require__(3)(module)))
+/* WEBPACK VAR INJECTION */}.call(__webpack_exports__, __webpack_require__(2)(module)))
 
 /***/ })
 /******/ ]);

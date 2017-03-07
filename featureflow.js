@@ -1,3 +1,9 @@
+/*!
+ * Featureflow Client v0.2.1
+ * Web: https://www.featureflow.io/
+ * Date: 2017-03-07T05:09:30.950Z
+ * Licence: Apache-2.0
+ */
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -73,7 +79,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 3);
+/******/ 	return __webpack_require__(__webpack_require__.s = 4);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -81,6 +87,9 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__package_json__ = __webpack_require__(3);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__package_json___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__package_json__);
+
 function getJSON(endpoint, callback) {
   var request = new XMLHttpRequest();
   request.addEventListener('load', function () {
@@ -94,6 +103,7 @@ function getJSON(endpoint, callback) {
     callback(request.statusText);
   });
   request.open('GET', endpoint);
+  request.setRequestHeader('X-Featureflow-Client', 'javascript-' + __WEBPACK_IMPORTED_MODULE_0__package_json___default.a.version);
   request.send();
   return request;
 }
@@ -216,6 +226,83 @@ module.exports = function(originalModule) {
 
 /***/ }),
 /* 3 */
+/***/ (function(module, exports) {
+
+module.exports = {
+	"name": "featureflow-client",
+	"version": "0.2.1",
+	"description": "Featureflow Javascipt Client",
+	"author": "Featureflow <featureflow@featureflow.io>",
+	"license": "Apache-2.0",
+	"keywords": [
+		"featureflow",
+		"feature",
+		"analytics",
+		"client"
+	],
+	"files": [
+		"dist"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/featureflow/featureflow-javascript-sdk.git"
+	},
+	"main": "dist/featureflow",
+	"scripts": {
+		"build-lib": "webpack src/index.js dist/featureflow.js",
+		"build-min": "webpack -p src/index.js dist/featureflow.min.js",
+		"build": "node ./scripts/build.js",
+		"watch": "webpack --watch src/index.js dist/featureflow.js",
+		"test": "karma start --single-run",
+		"test:watch": "karma start --auto-watch --reporters=dots",
+		"prepublish": "node ./scripts/prepublish.js",
+		"flow": "flow",
+		"example": "webpack-dev-server --config ./example/webpack.config.js --content-base example/ --inline --port 8182"
+	},
+	"devDependencies": {
+		"babel": "^6.23.0",
+		"babel-core": "^6.23.1",
+		"babel-loader": "^6.3.0",
+		"babel-plugin-transform-flow-strip-types": "^6.22.0",
+		"babel-plugin-transform-object-rest-spread": "^6.23.0",
+		"babel-preset-es2015": "^6.22.0",
+		"chai": "3.5.0",
+		"css-loader": "^0.26.1",
+		"file-loader": "^0.10.0",
+		"flow-bin": "^0.39.0",
+		"gzip-size": "3.0.0",
+		"html-webpack-plugin": "^2.28.0",
+		"in-publish": "2.0.0",
+		"karma": "0.13.22",
+		"karma-chai": "0.1.0",
+		"karma-chrome-launcher": "1.0.1",
+		"karma-mocha": "1.0.1",
+		"karma-mocha-reporter": "2.0.4",
+		"karma-phantomjs-launcher": "0.2.1",
+		"karma-phantomjs-shim": "1.1.2",
+		"karma-sinon": "1.0.5",
+		"karma-sourcemap-loader": "0.3.7",
+		"karma-webpack": "2.0.2",
+		"mocha": "2.5.3",
+		"phantomjs": "1.9.18",
+		"pretty-bytes": "3.0.1",
+		"readline-sync": "1.4.4",
+		"semver-compare": "^1.0.0",
+		"sinon": "1.17.4",
+		"style-loader": "^0.13.1",
+		"webpack": "2.2.1",
+		"webpack-dev-server": "^2.3.0"
+	},
+	"dependencies": {
+		"Base64": "1.0.0",
+		"escape-string-regexp": "1.0.5",
+		"sizzle": "2.3.0",
+		"tiny-emitter": "^1.1.0"
+	}
+};
+
+/***/ }),
+/* 4 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -289,8 +376,12 @@ function init(apiKey) {
       }
 
       __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].getFeatures(config.baseUrl, apiKey, context, keys, function (error, _features) {
-        features = _extends({}, features, _features);
-        emitter.emit(events.UPDATED_FEATURE, _features);
+        if (!error) {
+          features = _extends({}, features, _features);
+          emitter.emit(events.UPDATED_FEATURE, _features);
+        } else {
+          emitter.emit(events.ERROR, error);
+        }
       });
     };
   }

@@ -1,7 +1,7 @@
 /*!
- * Featureflow Client v0.2.1
+ * Featureflow Client v0.2.2
  * Web: https://www.featureflow.io/
- * Date: 2017-03-07T05:09:30.950Z
+ * Date: 2017-03-13T03:55:53.654Z
  * Licence: Apache-2.0
  */
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -230,7 +230,7 @@ module.exports = function(originalModule) {
 
 module.exports = {
 	"name": "featureflow-client",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"description": "Featureflow Javascipt Client",
 	"author": "Featureflow <featureflow@featureflow.io>",
 	"license": "Apache-2.0",

@@ -1,7 +1,7 @@
 /*!
- * Featureflow Client v0.2.2
+ * Featureflow Client v0.2.3
  * Web: https://www.featureflow.io/
- * Date: 2017-03-13T03:55:53.654Z
+ * Date: 2017-03-21T04:11:30.667Z
  * Licence: Apache-2.0
  */
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -230,7 +230,7 @@ module.exports = function(originalModule) {
 
 module.exports = {
 	"name": "featureflow-client",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"description": "Featureflow Javascipt Client",
 	"author": "Featureflow <featureflow@featureflow.io>",
 	"license": "Apache-2.0",
@@ -378,6 +378,7 @@ function init(apiKey) {
       __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].getFeatures(config.baseUrl, apiKey, context, keys, function (error, _features) {
         if (!error) {
           features = _extends({}, features, _features);
+          localStorage.setItem('ff:' + context.key + ':' + apiKey, JSON.stringify(features));
           emitter.emit(events.UPDATED_FEATURE, _features);
         } else {
           emitter.emit(events.ERROR, error);

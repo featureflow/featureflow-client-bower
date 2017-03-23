@@ -1,7 +1,7 @@
 /*!
- * Featureflow Client v0.2.4
+ * Featureflow Client v0.2.5
  * Web: https://www.featureflow.io/
- * Date: 2017-03-23T06:17:33.091Z
+ * Date: 2017-03-23T22:53:51.004Z
  * Licence: Apache-2.0
  */
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -153,10 +153,12 @@ function saveFeatures(apiKey, contextKey, features) {
 
 var FeatureflowClient = function () {
   function FeatureflowClient(apiKey) {
+    var context = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
     var _this = this;
 
-    var context = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     var config = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+    var callback = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : function () {};
 
     _classCallCheck(this, FeatureflowClient);
 
@@ -190,8 +192,10 @@ var FeatureflowClient = function () {
             _this.features = _extends({}, _this.features, features);
             saveFeatures(_this.apiKey, _this.context.key, _this.features);
             _this.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].UPDATED_FEATURE, features);
+            callback(undefined, features);
           } else {
             _this.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].ERROR, error);
+            callback(error);
           }
         });
       };
@@ -208,6 +212,7 @@ var FeatureflowClient = function () {
       var _this2 = this;
 
       var context = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+      var callback = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : function () {};
 
       this.context = {
         key: context.key || DEFAULT_CONTEXT_VALUES.key,
@@ -221,11 +226,13 @@ var FeatureflowClient = function () {
           _this2.features = features || {};
           saveFeatures(_this2.apiKey, _this2.context.key, _this2.features);
           _this2.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].LOADED, features);
+          callback(undefined, features);
         } else {
           _this2.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].ERROR, error);
+          callback(error);
         }
+        return _this2.context;
       });
-      return this.context;
     }
   }, {
     key: 'getFeatures',
@@ -245,9 +252,7 @@ var FeatureflowClient = function () {
   }, {
     key: 'goal',
     value: function goal(_goal) {
-      return __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].postGoalEvent(this.config.baseUrl, this.apiKey, _goal, this.getFeatures(), function (error, response) {
-        //noop
-      });
+      return __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].postGoalEvent(this.config.baseUrl, this.apiKey, _goal, this.getFeatures(), function () {});
     }
   }]);
 
@@ -463,7 +468,7 @@ module.exports = E;
 
 module.exports = {
 	"name": "featureflow-client",
-	"version": "0.2.4",
+	"version": "0.2.5",
 	"description": "Featureflow Javascipt Client",
 	"author": "Featureflow <featureflow@featureflow.io>",
 	"license": "Apache-2.0",

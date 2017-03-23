@@ -1,7 +1,7 @@
 /*!
- * Featureflow Client v0.2.3
+ * Featureflow Client v0.2.4
  * Web: https://www.featureflow.io/
- * Date: 2017-03-21T04:11:30.667Z
+ * Date: 2017-03-23T06:17:33.091Z
  * Licence: Apache-2.0
  */
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -79,7 +79,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 4);
+/******/ 	return __webpack_require__(__webpack_require__.s = 7);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -87,10 +87,258 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__package_json__ = __webpack_require__(3);
+/* unused harmony export LOADED */
+/* unused harmony export ERROR */
+/* unused harmony export UPDATED_FEATURE */
+var LOADED = 'LOADED';
+var ERROR = 'ERROR';
+var UPDATED_FEATURE = 'UPDATED_FEATURE';
+
+/* harmony default export */ __webpack_exports__["a"] = {
+  LOADED: LOADED,
+  ERROR: ERROR,
+  UPDATED_FEATURE: UPDATED_FEATURE
+};
+
+/***/ }),
+/* 1 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__RestClient__ = __webpack_require__(4);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__Evaluate__ = __webpack_require__(3);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__Events__ = __webpack_require__(0);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3_tiny_emitter__ = __webpack_require__(5);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3_tiny_emitter___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_3_tiny_emitter__);
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+
+
+
+
+
+
+
+var DEFAULT_CONTEXT_VALUES = {
+  key: 'anonymous'
+};
+
+var DEFAULT_BASE_URL = 'https://app.featureflow.io';
+var DEFAULT_RTM_URL = 'https://rtm.featureflow.io';
+
+var DEFAULT_CONFIG = {
+  baseUrl: DEFAULT_BASE_URL,
+  rtmUrl: DEFAULT_RTM_URL,
+  streaming: true,
+  defaultFeatures: {}
+};
+
+var INIT_MODULE_ERROR = new Error('init() has not been called with a valid apiKey');
+
+function loadFeatures(apiKey, contextKey) {
+  try {
+    return JSON.parse(localStorage.getItem('ff:' + contextKey + ':' + apiKey) || '{}');
+  } catch (err) {
+    return {};
+  }
+}
+
+function saveFeatures(apiKey, contextKey, features) {
+  return localStorage.setItem('ff:' + contextKey + ':' + apiKey, JSON.stringify(features));
+}
+
+var FeatureflowClient = function () {
+  function FeatureflowClient(apiKey) {
+    var _this = this;
+
+    var context = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    var config = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+
+    _classCallCheck(this, FeatureflowClient);
+
+    this.emitter = new __WEBPACK_IMPORTED_MODULE_3_tiny_emitter___default.a();
+    this.apiKey = apiKey;
+
+    //1. They must have an api key
+    if (!this.apiKey) {
+      throw INIT_MODULE_ERROR;
+    }
+
+    //2. Extend the default configuration
+    this.config = _extends({}, DEFAULT_CONFIG, config);
+
+    //3. Load initial data
+    this.updateContext(context);
+
+    //4. Set up realtime streaming
+    if (this.config.streaming) {
+      var es = new window.EventSource(this.config.rtmUrl + '/api/js/v1/stream/' + this.apiKey);
+      es.onmessage = function (e) {
+        var keys = [];
+        try {
+          keys = JSON.parse(e.data);
+        } catch (err) {
+          //Ah well, we tried...
+        }
+
+        __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].getFeatures(_this.config.baseUrl, _this.apiKey, _this.context, keys, function (error, features) {
+          if (!error) {
+            _this.features = _extends({}, _this.features, features);
+            saveFeatures(_this.apiKey, _this.context.key, _this.features);
+            _this.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].UPDATED_FEATURE, features);
+          } else {
+            _this.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].ERROR, error);
+          }
+        });
+      };
+    }
+
+    //Bind event emitter
+    this.on = this.emitter.on.bind(this.emitter);
+    this.off = this.emitter.off.bind(this.emitter);
+  }
+
+  _createClass(FeatureflowClient, [{
+    key: 'updateContext',
+    value: function updateContext() {
+      var _this2 = this;
+
+      var context = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+      this.context = {
+        key: context.key || DEFAULT_CONTEXT_VALUES.key,
+        values: context.values
+      };
+
+      this.features = loadFeatures(this.apiKey, this.context.key);
+
+      __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].getFeatures(this.config.baseUrl, this.apiKey, this.context, [], function (error, features) {
+        if (!error) {
+          _this2.features = features || {};
+          saveFeatures(_this2.apiKey, _this2.context.key, _this2.features);
+          _this2.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].LOADED, features);
+        } else {
+          _this2.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].ERROR, error);
+        }
+      });
+      return this.context;
+    }
+  }, {
+    key: 'getFeatures',
+    value: function getFeatures() {
+      return this.features;
+    }
+  }, {
+    key: 'getContext',
+    value: function getContext() {
+      return this.context;
+    }
+  }, {
+    key: 'evaluate',
+    value: function evaluate(key) {
+      return new __WEBPACK_IMPORTED_MODULE_1__Evaluate__["a" /* default */](this.features[key] || this.config.defaultFeatures[key] || 'off');
+    }
+  }, {
+    key: 'goal',
+    value: function goal(_goal) {
+      return __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].postGoalEvent(this.config.baseUrl, this.apiKey, _goal, this.getFeatures(), function (error, response) {
+        //noop
+      });
+    }
+  }]);
+
+  return FeatureflowClient;
+}();
+
+/* harmony default export */ __webpack_exports__["a"] = FeatureflowClient;
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports) {
+
+module.exports = function(originalModule) {
+	if(!originalModule.webpackPolyfill) {
+		var module = Object.create(originalModule);
+		// module.parent = undefined by default
+		if(!module.children) module.children = [];
+		Object.defineProperty(module, "loaded", {
+			enumerable: true,
+			get: function() {
+				return module.l;
+			}
+		});
+		Object.defineProperty(module, "id", {
+			enumerable: true,
+			get: function() {
+				return module.i;
+			}
+		});
+		Object.defineProperty(module, "exports", {
+			enumerable: true,
+		});
+		module.webpackPolyfill = 1;
+	}
+	return module;
+};
+
+
+/***/ }),
+/* 3 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var Evaluate = function () {
+  function Evaluate(value) {
+    _classCallCheck(this, Evaluate);
+
+    this.storedValue = value.toLowerCase();
+  }
+
+  _createClass(Evaluate, [{
+    key: 'value',
+    value: function value() {
+      return this.storedValue;
+    }
+  }, {
+    key: 'is',
+    value: function is(value) {
+      return value.toLowerCase() === this.value().toLowerCase();
+    }
+  }, {
+    key: 'isOn',
+    value: function isOn() {
+      return this.is('on');
+    }
+  }, {
+    key: 'isOff',
+    value: function isOff() {
+      return this.is('off');
+    }
+  }]);
+
+  return Evaluate;
+}();
+
+/* harmony default export */ __webpack_exports__["a"] = Evaluate;
+
+/***/ }),
+/* 4 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__package_json__ = __webpack_require__(6);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__package_json___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__package_json__);
 
-function getJSON(endpoint, callback) {
+
+function request(endpoint, config, callback) {
   var request = new XMLHttpRequest();
   request.addEventListener('load', function () {
     if (request.status === 200 && request.getResponseHeader('Content-type') === "application/json;charset=UTF-8") {
@@ -102,9 +350,14 @@ function getJSON(endpoint, callback) {
   request.addEventListener('error', function () {
     callback(request.statusText);
   });
-  request.open('GET', endpoint);
+  request.open(config.method, endpoint);
   request.setRequestHeader('X-Featureflow-Client', 'javascript-' + __WEBPACK_IMPORTED_MODULE_0__package_json___default.a.version);
-  request.send();
+  if (config.body) {
+    request.setRequestHeader('ContentType', 'application/json');
+    request.send(JSON.stringify(config.body));
+  } else {
+    request.send();
+  }
   return request;
 }
 
@@ -118,12 +371,22 @@ function base64URLEncode(context) {
     var callback = arguments[4];
 
     var query = keys.length > 0 ? '?keys=' + keys.join(',') : '';
-    getJSON(baseUrl + '/api/js/v1/evaluate/' + apiKey + '/context/' + encodeURI(base64URLEncode(context)) + query, callback);
+    request(baseUrl + '/api/js/v1/evaluate/' + apiKey + '/context/' + encodeURI(base64URLEncode(context)) + query, { method: 'GET' }, callback);
+  },
+  postGoalEvent: function postGoalEvent(baseUrl, apiKey, key, evaluated, callback) {
+    request(baseUrl + '/api/js/v1/goalevent/' + apiKey, {
+      method: 'POST',
+      body: {
+        key: key,
+        hits: 1,
+        evaluated: evaluated
+      }
+    }, callback);
   }
 };
 
 /***/ }),
-/* 1 */
+/* 5 */
 /***/ (function(module, exports) {
 
 function E () {
@@ -195,42 +458,12 @@ module.exports = E;
 
 
 /***/ }),
-/* 2 */
-/***/ (function(module, exports) {
-
-module.exports = function(originalModule) {
-	if(!originalModule.webpackPolyfill) {
-		var module = Object.create(originalModule);
-		// module.parent = undefined by default
-		if(!module.children) module.children = [];
-		Object.defineProperty(module, "loaded", {
-			enumerable: true,
-			get: function() {
-				return module.l;
-			}
-		});
-		Object.defineProperty(module, "id", {
-			enumerable: true,
-			get: function() {
-				return module.i;
-			}
-		});
-		Object.defineProperty(module, "exports", {
-			enumerable: true,
-		});
-		module.webpackPolyfill = 1;
-	}
-	return module;
-};
-
-
-/***/ }),
-/* 3 */
+/* 6 */
 /***/ (function(module, exports) {
 
 module.exports = {
 	"name": "featureflow-client",
-	"version": "0.2.3",
+	"version": "0.2.4",
 	"description": "Featureflow Javascipt Client",
 	"author": "Featureflow <featureflow@featureflow.io>",
 	"license": "Apache-2.0",
@@ -294,171 +527,32 @@ module.exports = {
 		"webpack-dev-server": "^2.3.0"
 	},
 	"dependencies": {
-		"Base64": "1.0.0",
-		"escape-string-regexp": "1.0.5",
-		"sizzle": "2.3.0",
 		"tiny-emitter": "^1.1.0"
 	}
 };
 
 /***/ }),
-/* 4 */
+/* 7 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 /* WEBPACK VAR INJECTION */(function(module) {Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__RestClient__ = __webpack_require__(0);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_tiny_emitter__ = __webpack_require__(1);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_tiny_emitter___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_tiny_emitter__);
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "events", function() { return events; });
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__FeatureflowClient__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__Events__ = __webpack_require__(0);
 /* harmony export (immutable) */ __webpack_exports__["init"] = init;
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "events", function() { return events; });
 
 
 
-
-var DEFAULT_CONTEXT_VALUES = {
-  key: 'anonymous'
-};
-
-var DEFAULT_BASE_URL = 'https://app.featureflow.io';
-var DEFAULT_RTM_URL = 'https://rtm.featureflow.io';
-
-var DEFAULT_CONFIG = {
-  baseUrl: DEFAULT_BASE_URL,
-  rtmUrl: DEFAULT_RTM_URL,
-  streaming: true,
-  defaultFeatures: {}
-};
-
-var INIT_MODULE_ERROR = new Error('init() has not been called with a valid apiKey');
-
-var events = {
-  LOADED: 'LOADED',
-  ERROR: 'ERROR',
-  UPDATED_FEATURE: 'UPDATED_FEATURE'
-};
 
 function init(apiKey) {
-  var _context = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+  var context = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+  var config = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
 
-  var _config = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
-
-  var features = {};
-  var config = void 0;
-  var context = void 0;
-  var emitter = new __WEBPACK_IMPORTED_MODULE_1_tiny_emitter___default.a();
-
-  //1. They must have an api key
-  if (!apiKey) {
-    throw INIT_MODULE_ERROR;
-  }
-
-  //2. Extend the default configuration
-  config = _extends({}, DEFAULT_CONFIG, _config);
-
-  //3. Load initial data
-  updateContext(_context);
-
-  //4. Set up realtime streaming
-  if (config.streaming) {
-    var es = new window.EventSource(config.rtmUrl + '/api/js/v1/stream/' + apiKey);
-    es.onmessage = function (e) {
-      var keys = [];
-      try {
-        keys = JSON.parse(e.data);
-      } catch (err) {
-        //Ah well, we tried...
-      }
-
-      __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].getFeatures(config.baseUrl, apiKey, context, keys, function (error, _features) {
-        if (!error) {
-          features = _extends({}, features, _features);
-          localStorage.setItem('ff:' + context.key + ':' + apiKey, JSON.stringify(features));
-          emitter.emit(events.UPDATED_FEATURE, _features);
-        } else {
-          emitter.emit(events.ERROR, error);
-        }
-      });
-    };
-  }
-
-  function updateContext(_context) {
-    context = _extends({}, DEFAULT_CONTEXT_VALUES, _context);
-
-    try {
-      features = JSON.parse(localStorage.getItem('ff:' + context.key + ':' + apiKey) || '{}');
-    } catch (err) {
-      features = {};
-    }
-
-    __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].getFeatures(config.baseUrl, apiKey, context, [], function (error, _features) {
-      if (!error) {
-        features = _features || {};
-        localStorage.setItem('ff:' + context.key + ':' + apiKey, JSON.stringify(features));
-        emitter.emit(events.LOADED, _features);
-      } else {
-        emitter.emit(events.ERROR, error);
-      }
-    });
-    return context;
-  }
-
-  var Evaluate = function () {
-    function Evaluate(key) {
-      _classCallCheck(this, Evaluate);
-
-      this.key = key;
-    }
-
-    _createClass(Evaluate, [{
-      key: 'value',
-      value: function value() {
-        return features[this.key] || config.defaultFeatures[this.key] || 'off';
-      }
-    }, {
-      key: 'is',
-      value: function is(value) {
-        return value.toLowerCase() === this.value().toLowerCase();
-      }
-    }, {
-      key: 'isOn',
-      value: function isOn() {
-        return this.is('on');
-      }
-    }, {
-      key: 'isOff',
-      value: function isOff() {
-        return this.is('off');
-      }
-    }]);
-
-    return Evaluate;
-  }();
-
-  function getFeatures() {
-    return features;
-  }
-
-  function getContext() {
-    return context;
-  }
-
-  return {
-    updateContext: updateContext,
-    getFeatures: getFeatures,
-    getContext: getContext,
-    evaluate: function evaluate(value) {
-      return new Evaluate(value);
-    },
-    on: emitter.on.bind(emitter),
-    off: emitter.off.bind(emitter)
-  };
+  return new __WEBPACK_IMPORTED_MODULE_0__FeatureflowClient__["a" /* default */](apiKey, context, config);
 }
+
+var events = __WEBPACK_IMPORTED_MODULE_1__Events__["a" /* default */];
 
 /* harmony default export */ __webpack_exports__["default"] = {
   init: init,

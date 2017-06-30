@@ -1,7 +1,7 @@
 /*!
- * Featureflow Client v0.3.0
+ * Featureflow Client v0.7.1
  * Web: https://www.featureflow.io/
- * Date: 2017-03-28T02:26:33.527Z
+ * Date: 2017-06-30T06:18:50.102Z
  * Licence: Apache-2.0
  */
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -88,14 +88,20 @@ return /******/ (function(modules) { // webpackBootstrap
 
 "use strict";
 /* unused harmony export LOADED */
+/* unused harmony export LOADED_FROM_CACHE */
 /* unused harmony export ERROR */
+/* unused harmony export INIT */
 /* unused harmony export UPDATED_FEATURE */
 var LOADED = 'LOADED';
+var LOADED_FROM_CACHE = 'LOADED_FROM_CACHE';
 var ERROR = 'ERROR';
+var INIT = 'INIT';
 var UPDATED_FEATURE = 'UPDATED_FEATURE';
 
 /* harmony default export */ __webpack_exports__["a"] = {
+  INIT: INIT,
   LOADED: LOADED,
+  LOADED_FROM_CACHE: LOADED_FROM_CACHE,
   ERROR: ERROR,
   UPDATED_FEATURE: UPDATED_FEATURE
 };
@@ -162,6 +168,7 @@ var FeatureflowClient = function () {
 
     _classCallCheck(this, FeatureflowClient);
 
+    this.receivedInitialResponse = false;
     this.emitter = new __WEBPACK_IMPORTED_MODULE_3_tiny_emitter___default.a();
     this.apiKey = apiKey;
 
@@ -220,19 +227,25 @@ var FeatureflowClient = function () {
       };
 
       this.features = loadFeatures(this.apiKey, this.context.key);
+      // Put this in timeout so we can listen to all events before it is returned
+      setTimeout(function () {
+        _this2.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].LOADED_FROM_CACHE, _this2.features);
 
-      __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].getFeatures(this.config.baseUrl, this.apiKey, this.context, [], function (error, features) {
-        if (!error) {
-          _this2.features = features || {};
-          saveFeatures(_this2.apiKey, _this2.context.key, _this2.features);
-          _this2.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].LOADED, features);
-          callback(undefined, features);
-        } else {
-          _this2.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].ERROR, error);
-          callback(error);
-        }
-        return _this2.context;
-      });
+        __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].getFeatures(_this2.config.baseUrl, _this2.apiKey, _this2.context, [], function (error, features) {
+          _this2.receivedInitialResponse = true;
+          if (!error) {
+            _this2.features = features || {};
+            saveFeatures(_this2.apiKey, _this2.context.key, _this2.features);
+            _this2.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].INIT, features);
+            _this2.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].LOADED, features);
+            callback(undefined, features);
+          } else {
+            _this2.emitter.emit(__WEBPACK_IMPORTED_MODULE_2__Events__["a" /* default */].ERROR, error);
+            callback(error);
+          }
+          return _this2.context;
+        });
+      }, 0);
     }
   }, {
     key: 'getFeatures',
@@ -247,7 +260,9 @@ var FeatureflowClient = function () {
   }, {
     key: 'evaluate',
     value: function evaluate(key) {
-      return new __WEBPACK_IMPORTED_MODULE_1__Evaluate__["a" /* default */](this.features[key] || this.config.defaultFeatures[key] || 'off');
+      var evaluate = new __WEBPACK_IMPORTED_MODULE_1__Evaluate__["a" /* default */](this.features[key] || this.config.defaultFeatures[key] || 'off');
+      __WEBPACK_IMPORTED_MODULE_0__RestClient__["a" /* default */].postEvaluateEvent(this.config.baseUrl, this.apiKey, this.context.key, key, evaluate.value(), function () {});
+      return evaluate;
     }
   }, {
     key: 'goal',
@@ -270,6 +285,11 @@ var FeatureflowClient = function () {
         __WEBPACK_IMPORTED_MODULE_4_js_cookie___default.a.set('ff-anonymous-key', anonymousKey);
       }
       return anonymousKey;
+    }
+  }, {
+    key: 'hasReceivedInitialResponse',
+    value: function hasReceivedInitialResponse() {
+      return this.receivedInitialResponse;
     }
   }]);
 
@@ -360,22 +380,24 @@ var Evaluate = function () {
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__package_json___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__package_json__);
 
 
-function request(endpoint, config, callback) {
+function request(endpoint, config) {
+  var callback = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : function () {};
+
   var request = new XMLHttpRequest();
   request.addEventListener('load', function () {
-    if (request.status === 200 && request.getResponseHeader('Content-type') === "application/json;charset=UTF-8") {
+    if (request.status === 200 && request.getResponseHeader('Content-Type') === "application/json;charset=UTF-8") {
       callback(null, JSON.parse(request.responseText));
     } else {
-      callback(request.statusText);
+      callback(request.statusText || 'non 200 response status code');
     }
   });
   request.addEventListener('error', function () {
-    callback(request.statusText);
+    callback('error connecting with server');
   });
   request.open(config.method, endpoint);
   request.setRequestHeader('X-Featureflow-Client', 'javascript-' + __WEBPACK_IMPORTED_MODULE_0__package_json___default.a.version);
   if (config.body) {
-    request.setRequestHeader('ContentType', 'application/json');
+    request.setRequestHeader('Content-Type', 'application/json');
     request.send(JSON.stringify(config.body));
   } else {
     request.send();
@@ -395,15 +417,32 @@ function base64URLEncode(context) {
     var query = keys.length > 0 ? '?keys=' + keys.join(',') : '';
     request(baseUrl + '/api/js/v1/evaluate/' + apiKey + '/context/' + encodeURI(base64URLEncode(context)) + query, { method: 'GET' }, callback);
   },
-  postGoalEvent: function postGoalEvent(baseUrl, apiKey, contextKey, goalKey, evaluated, callback) {
-    request(baseUrl + '/api/js/v1/goalevent/' + apiKey, {
+  postGoalEvent: function postGoalEvent(baseUrl, apiKey, contextKey, goalKey, evaluatedFeaturesMap, callback) {
+    request(baseUrl + '/api/js/v1/event/' + apiKey, {
       method: 'POST',
-      body: {
-        contextKey: contextKey,
-        goalKey: goalKey,
-        hits: 1,
-        evaluated: evaluated
-      }
+      body: [{
+        type: 'goal',
+        data: {
+          contextKey: contextKey,
+          goalKey: goalKey,
+          hits: 1,
+          evaluated: evaluatedFeaturesMap
+        }
+      }]
+    }, callback);
+  },
+  postEvaluateEvent: function postEvaluateEvent(baseUrl, apiKey, contextKey, featureKey, variant, callback) {
+    request(baseUrl + '/api/js/v1/event/' + apiKey, {
+      method: 'POST',
+      body: [{
+        type: 'evaluate',
+        data: {
+          contextKey: contextKey,
+          featureKey: featureKey,
+          variant: variant,
+          hits: 1
+        }
+      }]
     }, callback);
   }
 };
@@ -652,7 +691,7 @@ module.exports = E;
 
 module.exports = {
 	"name": "featureflow-client",
-	"version": "0.3.0",
+	"version": "0.7.1",
 	"description": "Featureflow Javascipt Client",
 	"author": "Featureflow <featureflow@featureflow.io>",
 	"license": "Apache-2.0",
